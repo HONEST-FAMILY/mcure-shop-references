@@ -1,0 +1,23 @@
+(()=>{
+const videos=[...document.querySelectorAll('video[data-src]')];
+const reduced=matchMedia('(prefers-reduced-motion: reduce)');
+let paused=reduced.matches;
+const motion=document.querySelector('#motion-toggle');
+function play(v,manual=false){if((paused&&!manual)||document.hidden||v.closest('[hidden]'))return;if(!v.src)v.src=v.dataset.src;v.play().catch(()=>{});}
+const observer=new IntersectionObserver(entries=>entries.forEach(e=>{const v=e.target;v.dataset.visible=String(e.isIntersecting&&e.intersectionRatio>.3);if(v.dataset.visible==='true')play(v);else v.pause();}),{threshold:[0,.3,.8]});
+videos.forEach(v=>{observer.observe(v);const b=v.closest('.panel').querySelector('[data-play]');if(b){b.addEventListener('click',()=>v.paused?play(v,true):v.pause());v.addEventListener('play',()=>b.textContent='영상 정지');v.addEventListener('pause',()=>b.textContent='영상 재생');}});
+function updateMotion(){if(motion){motion.textContent=paused?'영상 자동재생 켜기':'영상 모두 멈추기';motion.setAttribute('aria-pressed',String(paused));}videos.forEach(v=>{if(paused)v.pause();else if(v.dataset.visible==='true')play(v);});}
+motion?.addEventListener('click',()=>{paused=!paused;updateMotion();});updateMotion();
+document.addEventListener('visibilitychange',()=>videos.forEach(v=>{if(document.hidden)v.pause();else if(v.dataset.visible==='true')play(v);}));
+document.querySelectorAll('[data-panel]').forEach(b=>b.addEventListener('click',()=>{const card=b.closest('article.ref');card.querySelectorAll('[data-panel]').forEach(tab=>tab.setAttribute('aria-selected',String(tab===b)));card.querySelectorAll('.panel').forEach(p=>{p.hidden=p.id!==b.dataset.panel;p.querySelectorAll('video').forEach(v=>{if(p.hidden)v.pause();else play(v);});});}));
+const search=document.querySelector('#ref-search'),picks=document.querySelector('#picks-only'),cards=[...document.querySelectorAll('.ref')];let picksOnly=false;
+function filter(){const q=(search?.value||'').toLocaleLowerCase().trim();let total=0;cards.forEach(c=>{c.hidden=(picksOnly&&c.dataset.pick!=='true')||(q&&!c.textContent.toLocaleLowerCase().includes(q));if(!c.hidden)total++;});document.querySelectorAll('.group').forEach(g=>g.hidden=![...g.querySelectorAll('.ref')].some(c=>!c.hidden));document.querySelector('#result-count').textContent=total+'곳 표시';document.querySelector('#empty').hidden=total>0;}
+search?.addEventListener('input',filter);picks?.addEventListener('click',()=>{picksOnly=!picksOnly;picks.setAttribute('aria-pressed',String(picksOnly));filter();});
+document.querySelectorAll('a[href^="#"]').forEach(a=>a.addEventListener('click',()=>{const t=document.getElementById(a.hash.slice(1));if(t&&(t.classList.contains('ref')||t.classList.contains('group'))){picksOnly=false;picks?.setAttribute('aria-pressed','false');if(search)search.value='';filter();}}));
+const dialog=document.querySelector('#media-dialog'),content=dialog?.querySelector('.dialog-content'),title=dialog?.querySelector('h2');
+function open(src,label,isVideo=false){if(!dialog)return;content.replaceChildren();title.textContent=label;const el=document.createElement(isVideo?'video':'img');el.src=src;if(isVideo){el.controls=true;el.autoplay=true;el.loop=true;el.muted=true;el.playsInline=true;}else el.alt=label;content.append(el);dialog.showModal();}
+document.querySelectorAll('[data-enlarge]').forEach(b=>b.addEventListener('click',()=>{const p=b.closest('.panel'),v=p.querySelector('video'),img=p.querySelector('.desktop img');if(v)v.pause();open(v?v.dataset.src:img.src,b.dataset.enlarge,Boolean(v));}));
+document.querySelectorAll('.phone,.current-shots img').forEach(img=>{img.tabIndex=0;img.setAttribute('role','button');img.addEventListener('click',()=>open(img.src,img.alt));img.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open(img.src,img.alt);}});});
+dialog?.querySelector('.dialog-close').addEventListener('click',()=>dialog.close());dialog?.addEventListener('click',e=>{if(e.target===dialog)dialog.close();});dialog?.addEventListener('close',()=>{content.querySelectorAll('video').forEach(v=>v.pause());content.replaceChildren();});
+document.querySelectorAll('[data-current]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-current]').forEach(t=>t.setAttribute('aria-selected',String(t===b)));const mode=b.dataset.current;document.querySelectorAll('.current-shots img').forEach(img=>{img.src='cap/mcure-'+mode+(img.classList.contains('current-phone')?'_m':'')+'.jpg';img.alt='현재 엠큐어 '+(mode==='main'?'메인':'상품상세')+' '+(img.classList.contains('current-phone')?'폰':'PC')+' 화면';});document.querySelector('#current-caption').textContent=mode==='main'?'현재 메인 · PC와 폰, 2026.11.05 확인':'현재 주사기가이드 상세 · PC와 폰, 2026.11.05 확인';}));
+})();
